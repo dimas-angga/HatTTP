@@ -7,7 +7,9 @@
 
 int main(int argc, char **argv)
 {
-    HatTTP::Server server(8787);
+    struct ev_loop *loop = EV_DEFAULT;
+
+    HatTTP::Server server(loop, PORT);
     server.start();
 
     return 0;

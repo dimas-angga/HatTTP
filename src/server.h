@@ -9,11 +9,14 @@
 #include <unistd.h>
 
 #include <exception>
+#include <memory>
 #include <cstdio>
 #include <cstring>
 #include <cstdlib>
 
 #define BACKLOG 10
+
+#define CB_ARGS struct ev_loop *loop, struct ev_io *watcher, int revents
 
 namespace HatTTP
 {
@@ -21,8 +24,11 @@ namespace HatTTP
 class Server
 {
 public:
-    Server(short port);
+    Server(struct ev_loop *loop, short port);
     ~Server();
+
+    static void acceptCallback(CB_ARGS);
+    static void handleCallback(CB_ARGS);
 
     void start();
 
@@ -34,6 +40,8 @@ private:
     bool _running;
 
     int _yes;
+
+    struct ev_loop *_loop;
 };
 
 } /* HatTTP */

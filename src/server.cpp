@@ -4,8 +4,9 @@
 namespace HatTTP
 {
 
-Server::Server(short port)
-    : _port(port), _yes(1), _addr_size(sizeof(_addr)), _running(false)
+Server::Server(struct ev_loop *loop, short port)
+    : _loop(loop), _port(port), _yes(1), _addr_size(sizeof(_addr)),
+      _running(false)
 {
     _sockfd = socket(PF_INET, SOCK_STREAM, 0);
     if (_sockfd < 0) {
@@ -29,10 +30,43 @@ Server::~Server()
 
 }
 
-void Server::start()
+void Server::acceptCallback(CB_ARGS)
 {
     struct sockaddr_storage client_addr;
     socklen_t client_addr_size = sizeof(client_addr);
+    int client_sockfd;
+
+    struct ev_io *w_client = (struct ev_io *) malloc(sizeof(struct ev_io));
+
+    client_sockfd = accept(watcher->fd, (struct sockaddr *) &client_addr, &client_addr_size);
+
+    ev_io_init(w_client, handleCallback, client_sockfd, EV_READ);
+    ev_io_start(loop, w_client);
+}
+
+void Server::handleCallback(CB_ARGS)
+{
+    char buffer[4096];
+
+    memset(buffer, 0, sizeof(buffer));
+    recv(watcher->fd, buffer, 4096, 0);
+    printf("%s", buffer);
+
+    std::string body = "<h1>The quick brown fox jumps over the lazy dog<h1>\n";
+    HatTTP::Response response = HatTTP::Response::create(HTTP_200_OK, (byte *) body.data(), body.length(), false);
+    response.compileHeader();
+
+    send(watcher->fd, response.getCompiledHeader().data(), response.getCompiledHeader().length(), 0);
+    send(watcher->fd, response.getBody(), response.getLength(), 0);
+
+    ev_io_stop(loop, watcher);
+    shutdown(watcher->fd, 2);
+    free(watcher);
+}
+
+void Server::start()
+{
+    struct ev_io w_accept;
 
     if (bind(_sockfd, (struct sockaddr *) &_addr, _addr_size) != 0) {
         perror("bind Error");
@@ -48,23 +82,11 @@ void Server::start()
 
     printf("Server listening http://0.0.0.0:%d/\n", _port);
 
-    char buffer[4096];
-    std::string body = "<h1>The quick brown fox jumps over the lazy dog<h1>\n";
-    HatTTP::Response response = HatTTP::Response::create(HTTP_200_OK, (byte *) body.data(), body.length(), false);
-    response.compileHeader();
-
+    ev_io_init(&w_accept, acceptCallback, _sockfd, EV_READ);
+    ev_io_start(_loop, &w_accept);
 
     while (_running) {
-        int client_sockfd = accept(_sockfd, (struct sockaddr *) &client_addr, &client_addr_size);
-
-        memset(buffer, 0, sizeof(buffer));
-        recv(client_sockfd, buffer, 4096, 0);
-        printf("%s", buffer);
-
-        send(client_sockfd, response.getCompiledHeader().data(), response.getCompiledHeader().length(), 0);
-        send(client_sockfd, response.getBody(), response.getLength(), 0);
-
-        shutdown(client_sockfd, 2);
+        ev_loop(_loop, 0);
     }
 }
 
