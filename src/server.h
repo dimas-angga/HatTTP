@@ -8,16 +8,32 @@
 #include <netinet/in.h>
 #include <unistd.h>
 
+#include <exception>
+#include <cstdio>
+#include <cstring>
+#include <cstdlib>
+
+#define BACKLOG 10
+
 namespace HatTTP
 {
 
 class Server
 {
 public:
-    Server();
+    Server(short port);
     ~Server();
-private:
 
+    void start();
+
+private:
+    int _sockfd;
+    struct sockaddr_in _addr;
+    socklen_t _addr_size;
+    short _port;
+    bool _running;
+
+    int _yes;
 };
 
 } /* HatTTP */

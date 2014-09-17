@@ -9,7 +9,7 @@ int main(int argc, char **argv)
 {
     struct ev_loop *loop = EV_DEFAULT;
 
-    HatTTP::Server server;
+    //HatTTP::Server server;
     // TODO
 
     ev_run(loop, 0);
